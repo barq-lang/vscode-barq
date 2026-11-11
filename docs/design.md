@@ -1,6 +1,6 @@
 # Barq VS Code Extension — design
 
-> **Status (v0.2.0):** built — highlighting (code and `views/` templates), snippets, format on save, inline errors, outline, `use` links, file icon, the Run / Serve / Test / REPL / Check workspace / Packages / Restart language server commands, and through `barq lsp`: IntelliSense, hover, go to definition, references, rename (variables and parameters), signature help, workspace symbols. Not yet: inlay hints, quick fixes, the debugger, `barq new`. Settings that exist: `barq.path`, `barq.languageServer.enable`, `barq.diagnostics.enable`, `barq.diagnostics.onType`, `barq.format.indentSize`, `barq.format.sortImports`, `barq.run.args`. The snippets below are from the early design; the shipped ones use today's syntax (`Route.get("/path", #[Controller, "method"])`). This page is the full plan.
+> **Status (v0.3.0):** built — highlighting (code and `views/` templates), snippets, format on save, inline errors, outline, `use` links, file icon, the Run / Serve / Test / REPL / Check workspace / Packages / Restart language server commands, and through `barq lsp`: IntelliSense, hover, go to definition, references, rename (variables and parameters), signature help, workspace symbols; through `barq dap` (v0.3.0): the debugger as designed below, except hot reload. Not yet: inlay hints, quick fixes, `barq new`. Settings that exist: `barq.path`, `barq.languageServer.enable`, `barq.diagnostics.enable`, `barq.diagnostics.onType`, `barq.format.indentSize`, `barq.format.sortImports`, `barq.run.args`. The snippets below are from the early design; the shipped ones use today's syntax (`Route.get("/path", #[Controller, "method"])`). This page is the full plan.
 
 > Official VS Code extension for the Barq programming language.  
 > Provides syntax highlighting, IntelliSense, snippets, diagnostics, and debugging support.
@@ -129,6 +129,8 @@ Runs `barq fmt` on save (enabled by default).
 
 The extension integrates VS Code's debug UI with the Barq bytecode VM.
 
+> **Status (v0.3.0):** built. VS Code runs `barq dap` (Barq 0.24.0), which runs the program in-process under `sys.monitoring`. Also there: hit counts, log points, exception breakpoints, pause, setting values. Not yet: hot reload, debugging `barq serve`.
+
 ### Launch config (`.vscode/launch.json`)
 
 ```json
@@ -160,7 +162,7 @@ The extension integrates VS Code's debug UI with the Barq bytecode VM.
 | Variable inspection | ✅ |
 | Watch expressions | ✅ |
 | Call stack | ✅ |
-| Hot reload on save | ✅ (web server mode) |
+| Hot reload on save | ⏳ planned (web server mode) |
 
 ---
 

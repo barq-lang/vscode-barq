@@ -48,8 +48,10 @@ test("package.json points at files that exist", () => {
   for (const s of pkg.contributes.snippets) files.push(s.path);
   for (const f of files) assert.ok(fs.existsSync(path.join(ROOT, f)), f);
   const commands = pkg.contributes.commands.map((c) => c.command);
-  const src = fs.readFileSync(path.join(ROOT, pkg.main), "utf8");
+  const srcDir = path.join(ROOT, "src");
+  const src = fs.readdirSync(srcDir).map((f) => fs.readFileSync(path.join(srcDir, f), "utf8")).join("\n");
   for (const c of commands) assert.ok(src.includes(`"${c}"`), `command ${c} is not registered`);
+  for (const d of pkg.contributes.debuggers) assert.ok(src.includes(`TYPE = "${d.type}"`), `debugger ${d.type} has no adapter`);
 });
 
 test("grammar regexes compile", () => {

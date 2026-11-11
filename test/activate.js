@@ -1,7 +1,7 @@
 // Loads src/extension.js against a small stand-in for the `vscode` module and
 // drives it with a real barq: first with the language server off (barq fmt /
 // barq check per file), then with `barq lsp` (completion, hover, definition,
-// rename, diagnostics...).
+// rename, diagnostics...), and debugging through `barq dap`.
 // Skipped when no barq is found (a barq checkout next to this repo, or BARQ=...).
 //
 //   node test/activate.js
@@ -91,6 +91,12 @@ const vscode = {
   },
   commands: { registerCommand: (name) => (registered[name] = true) },
   env: {},
+  DebugAdapterExecutable: class { constructor(command, args, options) { Object.assign(this, { command, args, options }); } },
+  debug: {
+    registerDebugAdapterDescriptorFactory: (type, f) => (registered["debug:" + type] = f),
+    registerDebugConfigurationProvider: (type, p) => (registered["debugConfig:" + type] = p),
+    startDebugging: async () => true,
+  },
 };
 
 const realLoad = Module._load;
@@ -114,17 +120,89 @@ function doc(file, text) {
   };
 }
 
+// The debug adapter the factory describes really starts and answers.
+async function debugAdapter(tmp) {
+  const cp = require("child_process");
+  const provider = registered["debugConfig:barq"];
+  const file = path.join(tmp, "dbg.bq");
+  fs.writeFileSync(file, 'int x = 41\nx += 1\nprint("x is {x}")\n');
+  assert.deepStrictEqual(provider.provideDebugConfigurations().map((c) => c.program), ["${file}"]);
+  const filled = provider.resolveDebugConfiguration(undefined, { type: "barq", request: "launch", name: "n", program: file });
+  assert.strictEqual(filled.cwd, tmp);
+  const d = registered["debug:barq"].createDebugAdapterDescriptor({ configuration: filled });
+  assert.deepStrictEqual([d.command, d.args, d.options.cwd], [barq, ["dap"], tmp]);
+
+  const child = cp.spawn(d.command, d.args, { cwd: d.options.cwd, stdio: ["pipe", "pipe", "inherit"] });
+  let buf = Buffer.alloc(0);
+  const inbox = [];
+  let wake = null;
+  child.stdout.on("data", (chunk) => {
+    buf = Buffer.concat([buf, chunk]);
+    for (;;) {
+      const end = buf.indexOf("\r\n\r\n");
+      if (end < 0) break;
+      const len = Number(/Content-Length: (\d+)/i.exec(buf.slice(0, end).toString())[1]);
+      if (buf.length < end + 4 + len) break;
+      inbox.push(JSON.parse(buf.slice(end + 4, end + 4 + len).toString()));
+      buf = buf.slice(end + 4 + len);
+    }
+    if (wake) wake();
+  });
+  let seq = 0;
+  const send = (command, args) => {
+    const data = Buffer.from(JSON.stringify({ seq: ++seq, type: "request", command, arguments: args }));
+    child.stdin.write(`Content-Length: ${data.length}\r\n\r\n`);
+    child.stdin.write(data);
+    return seq;
+  };
+  const next = async (match) => {
+    const deadline = Date.now() + 15000;
+    for (;;) {
+      const i = inbox.findIndex(match);
+      if (i >= 0) return inbox.splice(i, 1)[0];
+      if (Date.now() > deadline) throw new Error("no answer from barq dap");
+      await new Promise((r) => { wake = r; setTimeout(r, 200); });
+    }
+  };
+  const request = async (command, args) => {
+    const s = send(command, args);
+    const res = await next((m) => m.type === "response" && m.request_seq === s);
+    assert.ok(res.success, `${command}: ${res.message}`);
+    return res.body || {};
+  };
+  const caps = await request("initialize", { adapterID: "barq" });
+  assert.ok(caps.supportsConfigurationDoneRequest);
+  await request("launch", filled);
+  await next((m) => m.event === "initialized");
+  const bps = await request("setBreakpoints", { source: { path: file }, breakpoints: [{ line: 2 }] });
+  assert.ok(bps.breakpoints[0].verified);
+  await request("configurationDone", {});
+  await next((m) => m.event === "stopped");
+  const frames = await request("stackTrace", { threadId: 1 });
+  assert.strictEqual(frames.stackFrames[0].line, 2);
+  const value = await request("evaluate", { expression: "x", frameId: 1, context: "watch" });
+  assert.strictEqual(value.result, "41");
+  await request("continue", { threadId: 1 });
+  const out = await next((m) => m.event === "output" && m.body.category === "stdout");
+  assert.strictEqual(out.body.output, "x is 42\n");
+  assert.strictEqual((await next((m) => m.event === "exited")).body.exitCode, 0);
+  await request("disconnect", {});
+  await new Promise((r) => child.on("exit", r));
+  console.log("  ok    debugging: the factory starts barq dap; breakpoint, evaluate, output");
+}
+
 // -- the tests --------------------------------------------------------------------
 
 (async () => {
   const ext = require("../src/extension");
   const subs = [];
   ext.activate({ subscriptions: subs });
-  for (const c of ["barq.runFile", "barq.serve", "barq.test", "barq.repl", "barq.checkWorkspace", "barq.packages", "barq.restartServer"]) {
+  for (const c of ["barq.runFile", "barq.debugFile", "barq.serve", "barq.test", "barq.repl", "barq.checkWorkspace", "barq.packages", "barq.restartServer"]) {
     assert.ok(registered[c], `${c} registered`);
   }
 
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "barq-ext-"));
+  await debugAdapter(tmp);
   fs.mkdirSync(path.join(tmp, "app", "Models"), { recursive: true });
   fs.mkdirSync(path.join(tmp, "routes"));
   fs.writeFileSync(path.join(tmp, "app", "Models", "Thing.bq"), "namespace App\\Models\n\nclass Thing\n    public int n = 1\n");

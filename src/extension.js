@@ -3,8 +3,9 @@
 // signature help, outline, workspace symbols, formatting and inline errors.
 // When the server cannot start (an older barq, or barq.languageServer.enable
 // is off), formatting, errors and the outline fall back to running `barq fmt` /
-// `barq check` per file. Everything goes through the barq command, so the
-// extension always matches the installed language version.
+// `barq check` per file. Debugging runs `barq dap` (see debug.js). Everything
+// goes through the barq command, so the extension always matches the installed
+// language version.
 
 "use strict";
 
@@ -15,6 +16,7 @@ const path = require("path");
 const lib = require("./lib");
 const { Client } = require("./client");
 const lsp = require("./lsp");
+const debug = require("./debug");
 
 const LANG = "barq";
 let diagnostics;
@@ -428,9 +430,21 @@ function activate(context) {
     const changed = () => client && client.notify("workspace/didChangeWatchedFiles", { changes: [] });
     context.subscriptions.push(w, w.onDidCreate(changed), w.onDidDelete(changed), w.onDidChange(changed));
   }
+  let debugging = null;
+  if (vscode.debug) {
+    debugging = debug.register(vscode, context, {
+      barqCommand,
+      runArgs: () => config().get("run.args") || [],
+      activeBarqFile: () => {
+        const editor = vscode.window.activeTextEditor;
+        return editor && editor.document.languageId === LANG && editor.document.uri.scheme === "file"
+          ? editor.document.uri.fsPath : undefined;
+      },
+    });
+  }
   if (config().get("languageServer.enable")) startServer();
   else vscode.workspace.textDocuments.forEach((d) => scheduleCheck(d, 0));
-  return { startServer, stopServer, getClient: () => client };
+  return { startServer, stopServer, getClient: () => client, debugging };
 }
 
 function deactivate() {

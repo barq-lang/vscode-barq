@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0 — 2026-11-11
+
+Debugging, through `barq dap` (Barq 0.24.0-alpha): press F5 on a `.bq` file, or use *Barq: Debug current file*. Breakpoints with conditions, hit counts and log messages, step over / into / out, the call stack, variables, watch, hover and the debug console, uncaught / all exception breakpoints, pause. A `barq` launch configuration type with `program`, `args`, `cwd`, `env` and `stopOnEntry`.
+
 ## 0.2.1 — 2026-11-11
 
 Barq 0.23.0-alpha: `karo` is highlighted as a type (`karo kr`, `list<karo>`), and `kr` as a keyword only when it starts a lambda (`kr(int n): int => ...`), not in calls like `kr(value)`.

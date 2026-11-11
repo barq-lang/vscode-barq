@@ -1,8 +1,8 @@
 {
   "name": "barq-vscode",
   "displayName": "Barq",
-  "description": "Barq (برق) language support: completion, hover, go to definition, references, rename and inline errors from the Barq language server, formatting, snippets, outline and run commands.",
-  "version": "0.2.1",
+  "description": "Barq (برق) language support: completion, hover, go to definition, references, rename and inline errors from the Barq language server, a debugger (breakpoints, stepping, variables), formatting, snippets, outline and run commands.",
+  "version": "0.3.0",
   "publisher": "barq-lang",
   "license": "MIT",
   "icon": "icons/barq.png",
@@ -16,10 +16,10 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Programming Languages", "Formatters", "Linters", "Snippets"],
+  "categories": ["Programming Languages", "Debuggers", "Formatters", "Linters", "Snippets"],
   "keywords": ["barq", "bq", "برق"],
   "main": "./src/extension.js",
-  "activationEvents": ["workspaceContains:**/*.bq", "onLanguage:barq"],
+  "activationEvents": ["workspaceContains:**/*.bq", "onLanguage:barq", "onDebugResolve:barq", "onDebugDynamicConfigurations:barq"],
   "contributes": {
     "languages": [
       {
@@ -51,9 +51,40 @@
         "injectTo": ["text.html.barq"]
       }
     ],
+    "breakpoints": [{ "language": "barq" }],
+    "debuggers": [
+      {
+        "type": "barq",
+        "label": "Barq",
+        "languages": ["barq"],
+        "configurationAttributes": {
+          "launch": {
+            "required": ["program"],
+            "properties": {
+              "program": { "type": "string", "description": "The .bq file to run.", "default": "${file}" },
+              "args": { "type": "array", "items": { "type": "string" }, "description": "Arguments for the program (args() in Barq).", "default": [] },
+              "cwd": { "type": "string", "description": "Folder to run in (default: the program's folder).", "default": "${workspaceFolder}" },
+              "env": { "type": "object", "additionalProperties": { "type": ["string", "null"] }, "description": "Extra environment variables (null removes one).", "default": {} },
+              "stopOnEntry": { "type": "boolean", "description": "Stop on the first line.", "default": false }
+            }
+          }
+        },
+        "initialConfigurations": [
+          { "type": "barq", "request": "launch", "name": "Barq: Debug current file", "program": "${file}" }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "Barq: Launch a program",
+            "description": "Debug a .bq file with barq dap",
+            "body": { "type": "barq", "request": "launch", "name": "Barq: ${1:main.bq}", "program": "^\"\\${workspaceFolder}/${1:main.bq}\"", "args": [] }
+          }
+        ]
+      }
+    ],
     "snippets": [{ "language": "barq", "path": "./snippets/barq.json" }],
     "commands": [
       { "command": "barq.runFile", "title": "Barq: Run current file", "icon": "$(play)" },
+      { "command": "barq.debugFile", "title": "Barq: Debug current file", "icon": "$(debug-alt)" },
       { "command": "barq.serve", "title": "Barq: Serve project (barq serve)" },
       { "command": "barq.test", "title": "Barq: Run project tests (barq test)" },
       { "command": "barq.checkWorkspace", "title": "Barq: Check every file in the workspace" },
@@ -62,7 +93,10 @@
       { "command": "barq.restartServer", "title": "Barq: Restart language server" }
     ],
     "menus": {
-      "editor/title/run": [{ "command": "barq.runFile", "when": "resourceLangId == barq" }]
+      "editor/title/run": [
+        { "command": "barq.runFile", "when": "resourceLangId == barq" },
+        { "command": "barq.debugFile", "when": "resourceLangId == barq" }
+      ]
     },
     "configurationDefaults": {
       "[barq]": { "editor.formatOnSave": true, "editor.tabSize": 4, "editor.insertSpaces": true }
