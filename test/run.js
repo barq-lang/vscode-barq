@@ -183,6 +183,24 @@ test("barq check through checkArgs and parseCheckOutput", () => {
   assert.match(rows[0].message, /expects int/);
 });
 
+test("language server client reads framed messages split across chunks", () => {
+  const { Client } = require("../src/client");
+  const c = new Client({ command: "barq" });
+  const got = [];
+  c.on("note", (p) => got.push(p.text));
+  let answer = null;
+  c.waiting.set(7, { resolve: (r) => (answer = r), reject: () => {} });
+  const frame = (msg) => {
+    const body = Buffer.from(JSON.stringify(msg), "utf8");
+    return Buffer.concat([Buffer.from(`Content-Length: ${body.length}\r\n\r\n`), body]);
+  };
+  const all = Buffer.concat([frame({ jsonrpc: "2.0", method: "note", params: { text: "برق 🙂" } }),
+                             frame({ jsonrpc: "2.0", id: 7, result: { ok: true } })]);
+  for (let i = 0; i < all.length; i += 5) c.receive(all.slice(i, i + 5)); // split mid-header and mid-character
+  assert.deepStrictEqual(got, ["برق 🙂"]);
+  assert.deepStrictEqual(answer, { ok: true });
+});
+
 test("every snippet expands to code barq check accepts", () => {
   if (!barq) return "skip";
   const snippets = JSON.parse(fs.readFileSync(path.join(ROOT, "snippets/barq.json"), "utf8"));

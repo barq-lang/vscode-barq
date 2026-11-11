@@ -1,8 +1,8 @@
 {
   "name": "barq-vscode",
   "displayName": "Barq",
-  "description": "Barq (برق) language support: highlighting, formatting with barq fmt, inline errors from barq check, snippets, outline and run commands.",
-  "version": "0.1.0",
+  "description": "Barq (برق) language support: completion, hover, go to definition, references, rename and inline errors from the Barq language server, formatting, snippets, outline and run commands.",
+  "version": "0.2.0",
   "publisher": "barq-lang",
   "license": "MIT",
   "icon": "icons/barq.png",
@@ -19,7 +19,7 @@
   "categories": ["Programming Languages", "Formatters", "Linters", "Snippets"],
   "keywords": ["barq", "bq", "برق"],
   "main": "./src/extension.js",
-  "activationEvents": ["workspaceContains:**/*.bq"],
+  "activationEvents": ["workspaceContains:**/*.bq", "onLanguage:barq"],
   "contributes": {
     "languages": [
       {
@@ -58,7 +58,8 @@
       { "command": "barq.test", "title": "Barq: Run project tests (barq test)" },
       { "command": "barq.checkWorkspace", "title": "Barq: Check every file in the workspace" },
       { "command": "barq.repl", "title": "Barq: Open REPL" },
-      { "command": "barq.packages", "title": "Barq: Show installed packages" }
+      { "command": "barq.packages", "title": "Barq: Show installed packages" },
+      { "command": "barq.restartServer", "title": "Barq: Restart language server" }
     ],
     "menus": {
       "editor/title/run": [{ "command": "barq.runFile", "when": "resourceLangId == barq" }]
@@ -73,6 +74,11 @@
           "type": "string",
           "default": "barq",
           "description": "The barq command (or a full path to bin/barq in a barq checkout)."
+        },
+        "barq.languageServer.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use the Barq language server (`barq lsp`, Barq 0.19.0+) for completion, hover, go to definition, references, rename and errors. When off, or with an older barq, only formatting, errors and the outline work (through barq fmt / barq check)."
         },
         "barq.diagnostics.enable": {
           "type": "boolean",

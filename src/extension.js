@@ -1,5 +1,9 @@
-// Barq for VS Code: formatting (barq fmt), inline errors (barq check), outline,
-// `use` links and run commands. Everything goes through the barq command, so the
+// Barq for VS Code. Language features come from the Barq language server
+// (`barq lsp`): completion, hover, go to definition, references, rename,
+// signature help, outline, workspace symbols, formatting and inline errors.
+// When the server cannot start (an older barq, or barq.languageServer.enable
+// is off), formatting, errors and the outline fall back to running `barq fmt` /
+// `barq check` per file. Everything goes through the barq command, so the
 // extension always matches the installed language version.
 
 "use strict";
@@ -9,12 +13,17 @@ const cp = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const lib = require("./lib");
+const { Client } = require("./client");
+const lsp = require("./lsp");
 
 const LANG = "barq";
 let diagnostics;
 let output;
 const timers = new Map();
 let missingShown = false;
+let client = null; // a running language server, or null
+let starting = null;
+let crashes = [];
 
 function config() {
   return vscode.workspace.getConfiguration("barq");
@@ -100,7 +109,7 @@ const formatter = {
 // -- diagnostics ----------------------------------------------------------------
 
 async function check(document) {
-  if (document.languageId !== LANG || !config().get("diagnostics.enable")) return;
+  if (client || document.languageId !== LANG || !config().get("diagnostics.enable")) return;
   const file = document.uri.scheme === "file" ? document.uri.fsPath : document.fileName;
   const res = await runBarq(lib.checkArgs(file), document.getText(), cwdFor(document.uri));
   if (res.missing) {
@@ -119,13 +128,18 @@ async function check(document) {
 }
 
 function scheduleCheck(document, delay) {
-  if (document.languageId !== LANG) return;
+  if (client || document.languageId !== LANG) return;
   const key = document.uri.toString();
   clearTimeout(timers.get(key));
   timers.set(key, setTimeout(() => check(document), delay));
 }
 
 async function checkWorkspace() {
+  if (client) {
+    // the server checks open files; for the rest run barq check once
+    projectCommand("Barq check", ["check", "."]);
+    return;
+  }
   const files = await vscode.workspace.findFiles("**/*.bq", "{**/views/**,**/node_modules/**,**/.barq/**}");
   let count = 0;
   await vscode.window.withProgress(
@@ -191,6 +205,99 @@ const links = {
   },
 };
 
+// -- language server ---------------------------------------------------------------
+
+function serverSettings() {
+  return {
+    diagnostics: config().get("diagnostics.enable"),
+    diagnosticsOnType: config().get("diagnostics.onType"),
+    sortImports: config().get("format.sortImports"),
+  };
+}
+
+function isBarqDoc(d) {
+  return d.languageId === LANG && (d.uri.scheme === "file" || d.uri.scheme === "untitled");
+}
+
+function sendOpen(d) {
+  if (!client || !isBarqDoc(d)) return;
+  client.notify("textDocument/didOpen", {
+    textDocument: { uri: d.uri.toString(), languageId: LANG, version: d.version || 1, text: d.getText() },
+  });
+}
+
+async function startServer() {
+  if (starting) return starting;
+  if (client || !config().get("languageServer.enable")) return client;
+  const folders = vscode.workspace.workspaceFolders || [];
+  const c = new Client({
+    command: barqCommand(),
+    cwd: folders[0] ? folders[0].uri.fsPath : undefined,
+    log: (line) => output.appendLine(line),
+  });
+  c.on("textDocument/publishDiagnostics", (p) => {
+    const uri = vscode.Uri.parse(p.uri);
+    diagnostics.set(uri, (p.diagnostics || []).map(convert.diagnostic));
+  });
+  starting = c
+    .start({
+      processId: process.pid,
+      clientInfo: { name: "vscode-barq" },
+      rootUri: folders[0] ? folders[0].uri.toString() : null,
+      workspaceFolders: folders.map((f) => ({ uri: f.uri.toString(), name: f.name })),
+      initializationOptions: serverSettings(),
+      capabilities: {},
+    })
+    .then(
+      () => {
+        client = c;
+        output.appendLine("Barq language server started.");
+        diagnostics.clear();
+        vscode.workspace.textDocuments.forEach(sendOpen);
+        c.onExit((code) => {
+          client = null;
+          diagnostics.clear();
+          const now = Date.now();
+          crashes = crashes.filter((t) => now - t < 180000).concat(now);
+          output.appendLine(`Barq language server stopped (code ${code}).`);
+          if (crashes.length <= 3) startServer();
+          else {
+            output.appendLine("It stopped 3 times in 3 minutes; using barq fmt / barq check until you run 'Barq: Restart language server'.");
+            vscode.workspace.textDocuments.forEach((d) => scheduleCheck(d, 0));
+          }
+        });
+        return c;
+      },
+      (err) => {
+        if (err && err.code === "ENOENT") reportMissing();
+        output.appendLine(`Barq language server not available (${err.message}); using barq fmt / barq check instead.`);
+        vscode.workspace.textDocuments.forEach((d) => scheduleCheck(d, 0));
+        return null;
+      }
+    )
+    .finally(() => {
+      starting = null;
+    });
+  return starting;
+}
+
+async function stopServer() {
+  const c = client;
+  client = null;
+  if (c) await c.stop();
+}
+
+async function restartServer() {
+  crashes = [];
+  await stopServer();
+  diagnostics.clear();
+  const c = await startServer();
+  if (!c) vscode.workspace.textDocuments.forEach((d) => scheduleCheck(d, 0));
+  return c;
+}
+
+let convert;
+
 // -- commands ---------------------------------------------------------------------
 
 function terminal(name, cwd) {
@@ -240,37 +347,95 @@ function activate(context) {
   diagnostics = vscode.languages.createDiagnosticCollection("barq");
   output = vscode.window.createOutputChannel("Barq");
   const selector = { language: LANG };
+  const p = lsp.providers(vscode, () => client, {
+    format: (d) => formatter.provideDocumentFormattingEdits(d),
+    symbols: (d) => symbols.provideDocumentSymbols(d),
+    indentSize: () => config().get("format.indentSize"),
+  });
+  convert = p.convert;
   context.subscriptions.push(
     diagnostics,
     output,
-    vscode.languages.registerDocumentFormattingEditProvider(selector, formatter),
-    vscode.languages.registerDocumentSymbolProvider(selector, symbols),
+    vscode.languages.registerDocumentFormattingEditProvider(selector, p.formatting),
+    vscode.languages.registerDocumentSymbolProvider(selector, p.symbols),
     vscode.languages.registerDocumentLinkProvider(selector, links),
-    vscode.workspace.onDidOpenTextDocument((d) => scheduleCheck(d, 50)),
-    vscode.workspace.onDidSaveTextDocument((d) => scheduleCheck(d, 0)),
+    vscode.languages.registerCompletionItemProvider(selector, p.completion, ".", ":", "\\", "["),
+    vscode.languages.registerHoverProvider(selector, p.hover),
+    vscode.languages.registerDefinitionProvider(selector, p.definition),
+    vscode.languages.registerReferenceProvider(selector, p.references),
+    vscode.languages.registerDocumentHighlightProvider(selector, p.highlights),
+    vscode.languages.registerRenameProvider(selector, p.rename),
+    vscode.languages.registerSignatureHelpProvider(selector, p.signature, "(", ","),
+    vscode.languages.registerWorkspaceSymbolProvider(p.workspaceSymbols),
+    vscode.workspace.onDidOpenTextDocument((d) => {
+      if (client) sendOpen(d);
+      else scheduleCheck(d, 50);
+    }),
+    vscode.workspace.onDidSaveTextDocument((d) => {
+      if (client && isBarqDoc(d)) client.notify("textDocument/didSave", { textDocument: { uri: d.uri.toString() } });
+      else scheduleCheck(d, 0);
+    }),
     vscode.workspace.onDidChangeTextDocument((e) => {
-      if (config().get("diagnostics.onType")) scheduleCheck(e.document, 500);
+      if (client && isBarqDoc(e.document)) {
+        client.notify("textDocument/didChange", {
+          textDocument: { uri: e.document.uri.toString(), version: e.document.version },
+          contentChanges: [{ text: e.document.getText() }],
+        });
+      } else if (config().get("diagnostics.onType")) scheduleCheck(e.document, 500);
     }),
-    vscode.workspace.onDidCloseTextDocument((d) => diagnostics.delete(d.uri)),
+    vscode.workspace.onDidCloseTextDocument((d) => {
+      if (client && isBarqDoc(d)) client.notify("textDocument/didClose", { textDocument: { uri: d.uri.toString() } });
+      diagnostics.delete(d.uri);
+    }),
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration("barq")) {
-        missingShown = false;
-        if (!config().get("diagnostics.enable")) diagnostics.clear();
-        vscode.workspace.textDocuments.forEach((d) => scheduleCheck(d, 0));
+      if (!e.affectsConfiguration("barq")) return;
+      missingShown = false;
+      if (e.affectsConfiguration("barq.path") || e.affectsConfiguration("barq.languageServer.enable")) {
+        restartServer();
+        return;
       }
+      if (client) client.notify("workspace/didChangeConfiguration", { settings: { barq: serverSettings() } });
+      if (!config().get("diagnostics.enable")) diagnostics.clear();
+      vscode.workspace.textDocuments.forEach((d) => scheduleCheck(d, 0));
     }),
+    { dispose: () => stopServer() },
     vscode.commands.registerCommand("barq.runFile", runFile),
     vscode.commands.registerCommand("barq.serve", () => projectCommand("Barq serve", ["serve"])),
     vscode.commands.registerCommand("barq.test", () => projectCommand("Barq test", ["test"])),
     vscode.commands.registerCommand("barq.repl", () => projectCommand("Barq REPL", ["repl"])),
     vscode.commands.registerCommand("barq.checkWorkspace", checkWorkspace),
-    vscode.commands.registerCommand("barq.packages", showPackages)
+    vscode.commands.registerCommand("barq.packages", showPackages),
+    vscode.commands.registerCommand("barq.restartServer", async () => {
+      const c = await restartServer();
+      vscode.window.showInformationMessage(c ? "Barq: language server restarted." : "Barq: the language server could not start — see the Barq output.");
+    })
   );
-  vscode.workspace.textDocuments.forEach((d) => scheduleCheck(d, 0));
+  if (vscode.workspace.onDidChangeWorkspaceFolders) {
+    context.subscriptions.push(
+      vscode.workspace.onDidChangeWorkspaceFolders((e) => {
+        if (!client) return;
+        client.notify("workspace/didChangeWorkspaceFolders", {
+          event: {
+            added: e.added.map((f) => ({ uri: f.uri.toString(), name: f.name })),
+            removed: e.removed.map((f) => ({ uri: f.uri.toString(), name: f.name })),
+          },
+        });
+      })
+    );
+  }
+  if (vscode.workspace.createFileSystemWatcher) {
+    const w = vscode.workspace.createFileSystemWatcher("**/*.bq");
+    const changed = () => client && client.notify("workspace/didChangeWatchedFiles", { changes: [] });
+    context.subscriptions.push(w, w.onDidCreate(changed), w.onDidDelete(changed), w.onDidChange(changed));
+  }
+  if (config().get("languageServer.enable")) startServer();
+  else vscode.workspace.textDocuments.forEach((d) => scheduleCheck(d, 0));
+  return { startServer, stopServer, getClient: () => client };
 }
 
 function deactivate() {
   for (const t of timers.values()) clearTimeout(t);
+  return stopServer();
 }
 
 module.exports = { activate, deactivate };
