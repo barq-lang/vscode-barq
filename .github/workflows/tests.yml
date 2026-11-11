@@ -11,6 +11,11 @@ jobs:
         with:
           repository: barq-lang/barq
           path: barq
+      # The Model and Migration snippets need barq-framework next to barq.
+      - uses: actions/checkout@v4
+        with:
+          repository: barq-lang/barq-framework
+          path: barq-framework
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"
