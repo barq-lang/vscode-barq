@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1 — 2026-11-11
+
+Barq 0.23.0-alpha: `karo` is highlighted as a type (`karo kr`, `list<karo>`), and `kr` as a keyword only when it starts a lambda (`kr(int n): int => ...`), not in calls like `kr(value)`.
+
 ## 0.2.0 — 2026-11-11
 
 Language features from the Barq language server (`barq lsp`, Barq 0.19.0-alpha): completion, hover, go to definition, references, highlights, rename of variables and parameters, signature help, workspace symbols; formatting, errors and the outline also come from it. The extension starts it, restarts it if it stops, and falls back to `barq fmt` / `barq check` when it is not available. New setting `barq.languageServer.enable`, new command *Barq: Restart language server*. Still no npm dependencies: the LSP client is in `src/client.js`.

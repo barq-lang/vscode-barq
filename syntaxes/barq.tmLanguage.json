@@ -79,7 +79,7 @@
               "name": "keyword.operator.nullable.barq"
             },
             {
-              "match": "\\b(int|float|string|bool|void|any|list|dict|set|function|null)\\b",
+              "match": "\\b(int|float|string|bool|void|any|list|dict|set|karo|null)\\b",
               "name": "support.type.primitive.barq"
             },
             {
@@ -244,7 +244,7 @@
           }
         },
         {
-          "match": "\\b(karo|kr)\\b(?=\\s*\\()",
+          "match": "\\bkaro\\b(?=\\s*\\()|\\bkr\\b(?=\\s*\\([^()]*\\)\\s*(:|=>))",
           "name": "storage.type.function.anonymous.barq"
         }
       ]
@@ -292,7 +292,7 @@
     "types": {
       "patterns": [
         {
-          "match": "(\\?)?\\b(int|float|string|bool|void|any|list|dict|set|function)\\b(?=\\s*(<|[A-Za-z_*]|\\)|,|>|$))",
+          "match": "(\\?)?\\b(int|float|string|bool|void|any|list|dict|set|karo)\\b(?=\\s*(<|[A-Za-z_*]|\\)|,|>|$))",
           "captures": {
             "1": {
               "name": "keyword.operator.nullable.barq"

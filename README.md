@@ -48,8 +48,8 @@ git clone https://github.com/barq-lang/barq          # next to this repo; the te
 git clone https://github.com/barq-lang/vscode-barq
 cd vscode-barq
 npm test                  # helpers, grammar, snippets, and the extension against a real barq
-npm run package           # builds barq-vscode-0.2.0.vsix
-code --install-extension barq-vscode-0.2.0.vsix
+npm run package           # builds barq-vscode-0.2.1.vsix
+code --install-extension barq-vscode-0.2.1.vsix
 ```
 
 Press F5 in VS Code with this folder open to start an Extension Development Host. The extension has no npm dependencies.

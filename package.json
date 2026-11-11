@@ -2,7 +2,7 @@
   "name": "barq-vscode",
   "displayName": "Barq",
   "description": "Barq (برق) language support: completion, hover, go to definition, references, rename and inline errors from the Barq language server, formatting, snippets, outline and run commands.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "barq-lang",
   "license": "MIT",
   "icon": "icons/barq.png",
