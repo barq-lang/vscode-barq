@@ -1,0 +1,10 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Barq Template",
+  "scopeName": "text.html.barq",
+  "patterns": [
+    {
+      "include": "text.html.basic"
+    }
+  ]
+}

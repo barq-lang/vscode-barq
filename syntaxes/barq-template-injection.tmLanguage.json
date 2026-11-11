@@ -1,0 +1,65 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "scopeName": "barq.template.injection",
+  "injectionSelector": "L:text.html.barq -comment.block.barq-template",
+  "patterns": [
+    {
+      "name": "comment.block.barq-template",
+      "begin": "\\{--",
+      "end": "--\\}"
+    },
+    {
+      "name": "meta.embedded.raw.barq-template",
+      "begin": "\\{!",
+      "end": "!\\}",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.section.embedded.begin.barq-template"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.embedded.end.barq-template"
+        }
+      },
+      "contentName": "source.barq.embedded",
+      "patterns": [
+        {
+          "include": "source.barq"
+        }
+      ]
+    },
+    {
+      "name": "meta.embedded.expression.barq-template",
+      "begin": "\\{(?!-)",
+      "end": "\\}",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.section.embedded.begin.barq-template"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.embedded.end.barq-template"
+        }
+      },
+      "contentName": "source.barq.embedded",
+      "patterns": [
+        {
+          "include": "source.barq"
+        }
+      ]
+    },
+    {
+      "match": "(</?)(if|elseif|else|each|include|extends|section|yield|let|verbatim)\\b",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.tag.html"
+        },
+        "2": {
+          "name": "keyword.control.template.barq-template"
+        }
+      }
+    }
+  ]
+}

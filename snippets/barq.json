@@ -1,0 +1,187 @@
+{
+  "Function": {
+    "prefix": "barqfn",
+    "body": [
+      "#[Public]",
+      "#[${1:void}]",
+      "karo ${2:name}(${3})",
+      "    $0"
+    ],
+    "description": "Named function with visibility and return type attributes"
+  },
+  "Public function returning a value": {
+    "prefix": "barqpub",
+    "body": [
+      "#[Public]",
+      "#[${1:int}]",
+      "karo ${2:name}(${3:int a})",
+      "    return ${0:a}"
+    ]
+  },
+  "Class": {
+    "prefix": "barqclass",
+    "body": [
+      "class ${1:Name}",
+      "",
+      "    $0"
+    ]
+  },
+  "Constructor": {
+    "prefix": "barqctor",
+    "body": [
+      "#[Public]",
+      "#[void]",
+      "karo __construct(${1:string name})",
+      "    ${0:this.name = name}"
+    ]
+  },
+  "Anonymous function": {
+    "prefix": "barqanon",
+    "body": [
+      "karo(${1:int n}): ${2:int}",
+      "    $0"
+    ]
+  },
+  "Lambda": {
+    "prefix": "barqkr",
+    "body": [
+      "kr(${1:int n}): ${2:int} => ${0:n * 2}"
+    ]
+  },
+  "If": {
+    "prefix": "barqif",
+    "body": [
+      "if (${1:condition})",
+      "    $0"
+    ]
+  },
+  "If / else": {
+    "prefix": "barqifelse",
+    "body": [
+      "if (${1:condition})",
+      "    ${2}",
+      "else",
+      "    $0"
+    ]
+  },
+  "For": {
+    "prefix": "barqfor",
+    "body": [
+      "for ${1:item} in ${2:collection}",
+      "    $0"
+    ]
+  },
+  "Foreach": {
+    "prefix": "barqeach",
+    "body": [
+      "foreach ${1:item} in ${2:items}",
+      "    $0"
+    ]
+  },
+  "While": {
+    "prefix": "barqwhile",
+    "body": [
+      "while (${1:condition})",
+      "    $0"
+    ]
+  },
+  "Try / except": {
+    "prefix": "barqtry",
+    "body": [
+      "try",
+      "    ${1}",
+      "except ${2:Exception} as e",
+      "    ${0:Log.error(e.message)}"
+    ]
+  },
+  "Switch": {
+    "prefix": "barqswitch",
+    "body": [
+      "switch (${1:value})",
+      "    case ${2:\"a\"}:",
+      "        $0",
+      "    default:",
+      "        "
+    ]
+  },
+  "Enum": {
+    "prefix": "barqenum",
+    "body": [
+      "#[String]",
+      "enum ${1:Status}",
+      "    case ${2:Active} = \"${3:active}\"",
+      "    $0"
+    ]
+  },
+  "Route": {
+    "prefix": "barqroute",
+    "body": [
+      "Route.${1|get,post,put,patch,delete|}(\"${2:/path}\", #[${3:Controller}, \"${4:method}\"]).name(\"${5:route.name}\")"
+    ]
+  },
+  "Model": {
+    "prefix": "barqmodel",
+    "body": [
+      "namespace App\\Models",
+      "",
+      "class ${1:Post} extends Model",
+      "",
+      "    protected list<string> fillable = #[${2:\"title\", \"body\"}]",
+      "    protected list<string> hidden = #[]",
+      "    protected dict<string, string> casts = #{${3}}",
+      "    $0"
+    ],
+    "description": "Model (needs barq-framework)"
+  },
+  "Controller": {
+    "prefix": "barqcontroller",
+    "body": [
+      "namespace App\\Controllers",
+      "",
+      "class ${1:PostController}",
+      "",
+      "    #[Public]",
+      "    #[any]",
+      "    karo index(Request req)",
+      "        return ${2:#[]}",
+      "",
+      "    #[Public]",
+      "    #[any]",
+      "    karo show(Request req, int id)",
+      "        return ${3:#{\"id\": id\\}}",
+      "    $0"
+    ]
+  },
+  "Migration": {
+    "prefix": "barqmig",
+    "body": [
+      "namespace Database\\Migrations",
+      "",
+      "class ${1:CreatePostsTable} extends Migration",
+      "",
+      "    #[Public]",
+      "    #[void]",
+      "    karo up(Schema schema)",
+      "        schema.create(\"${2:posts}\", karo(Blueprint table): void",
+      "            table.id()",
+      "            $0",
+      "            table.timestamps()",
+      "        )",
+      "",
+      "    #[Public]",
+      "    #[void]",
+      "    karo down(Schema schema)",
+      "        schema.dropIfExists(\"${2:posts}\")"
+    ],
+    "description": "Migration (needs barq-framework)"
+  },
+  "Test": {
+    "prefix": "barqtest",
+    "body": [
+      "Test.it(\"${1:does something}\", karo(): void",
+      "    Test.assertEquals(${3:2}, ${2:1 + 1})",
+      "    $0",
+      ")"
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+name: tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: vscode-barq
+      - uses: actions/checkout@v4
+        with:
+          repository: barq-lang/barq
+          path: barq
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Tests
+        working-directory: vscode-barq
+        run: npm test
+      - name: Package
+        working-directory: vscode-barq
+        run: npx --yes @vscode/vsce@3.2.1 package --no-dependencies

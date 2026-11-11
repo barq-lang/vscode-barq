@@ -1,0 +1,387 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Barq",
+  "scopeName": "source.barq",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#attribute-line"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#declarations"
+    },
+    {
+      "include": "#functions"
+    },
+    {
+      "include": "#collections"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#calls"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#namespaced"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.barq",
+          "begin": "//",
+          "end": "$",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.barq"
+            }
+          }
+        },
+        {
+          "name": "comment.block.barq",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "attribute-line": {
+      "comment": "#[Public] / #[int] / #[Controller, \"method\"] alone on a line is an attribute; elsewhere #[ starts a list",
+      "name": "meta.attribute.barq",
+      "match": "^\\s*(#\\[)([^\\]]*)(\\])\\s*(?=$|//)",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.attribute.begin.barq"
+        },
+        "2": {
+          "patterns": [
+            {
+              "match": "\\b(Public|Private|Protected|Static|Abstract|Override|Final|String|Int)\\b",
+              "name": "storage.modifier.attribute.barq"
+            },
+            {
+              "match": "\\?",
+              "name": "keyword.operator.nullable.barq"
+            },
+            {
+              "match": "\\b(int|float|string|bool|void|any|list|dict|set|function|null)\\b",
+              "name": "support.type.primitive.barq"
+            },
+            {
+              "include": "#strings"
+            },
+            {
+              "match": "\\b[A-Z][A-Za-z0-9_]*\\b",
+              "name": "entity.name.type.barq"
+            }
+          ]
+        },
+        "3": {
+          "name": "punctuation.definition.attribute.end.barq"
+        }
+      }
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.barq",
+          "begin": "\"\"\"",
+          "end": "\"\"\"",
+          "patterns": [
+            {
+              "include": "#escapes"
+            },
+            {
+              "name": "meta.interpolation.barq",
+              "begin": "\\{(?!-)",
+              "beginCaptures": {
+                "0": {
+                  "name": "punctuation.section.interpolation.begin.barq"
+                }
+              },
+              "end": "\\}",
+              "endCaptures": {
+                "0": {
+                  "name": "punctuation.section.interpolation.end.barq"
+                }
+              },
+              "contentName": "source.barq.embedded",
+              "patterns": [
+                {
+                  "include": "$self"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.triple.raw.barq",
+          "begin": "'''",
+          "end": "'''"
+        },
+        {
+          "name": "string.quoted.double.barq",
+          "begin": "\"",
+          "end": "\"|$",
+          "patterns": [
+            {
+              "include": "#escapes"
+            },
+            {
+              "name": "meta.interpolation.barq",
+              "begin": "\\{(?!-)",
+              "beginCaptures": {
+                "0": {
+                  "name": "punctuation.section.interpolation.begin.barq"
+                }
+              },
+              "end": "\\}",
+              "endCaptures": {
+                "0": {
+                  "name": "punctuation.section.interpolation.end.barq"
+                }
+              },
+              "contentName": "source.barq.embedded",
+              "patterns": [
+                {
+                  "include": "$self"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.barq",
+          "begin": "'",
+          "end": "'|$",
+          "patterns": [
+            {
+              "match": "\\\\['\\\\]",
+              "name": "constant.character.escape.barq"
+            }
+          ]
+        }
+      ]
+    },
+    "escapes": {
+      "match": "\\\\(u[0-9A-Fa-f]{4}|[nrt0\\\\\"'{}])",
+      "name": "constant.character.escape.barq"
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "match": "\\b(class|interface|trait|enum)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": {
+              "name": "storage.type.class.barq"
+            },
+            "2": {
+              "name": "entity.name.type.class.barq"
+            }
+          }
+        },
+        {
+          "match": "\\b(extends|implements|new|instanceof)\\s+((?:\\\\?[A-Za-z_][A-Za-z0-9_]*)(?:\\\\[A-Za-z_][A-Za-z0-9_]*)*)",
+          "captures": {
+            "1": {
+              "name": "storage.modifier.barq"
+            },
+            "2": {
+              "name": "entity.other.inherited-class.barq"
+            }
+          }
+        },
+        {
+          "match": "^\\s*(namespace|use)\\s+([A-Za-z_][A-Za-z0-9_\\\\]*)",
+          "captures": {
+            "1": {
+              "name": "keyword.other.import.barq"
+            },
+            "2": {
+              "name": "entity.name.namespace.barq"
+            }
+          }
+        },
+        {
+          "match": "\\b(case)\\s+([A-Z][A-Za-z0-9_]*)\\s*(?==|$)",
+          "captures": {
+            "1": {
+              "name": "keyword.control.barq"
+            },
+            "2": {
+              "name": "variable.other.enummember.barq"
+            }
+          }
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "match": "\\b(karo)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\()",
+          "captures": {
+            "1": {
+              "name": "storage.type.function.barq"
+            },
+            "2": {
+              "name": "entity.name.function.barq"
+            }
+          }
+        },
+        {
+          "match": "\\b(karo|kr)\\b(?=\\s*\\()",
+          "name": "storage.type.function.anonymous.barq"
+        }
+      ]
+    },
+    "collections": {
+      "match": "#(?=[\\[{(])",
+      "name": "punctuation.definition.collection.barq"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "match": "\\b(if|elseif|else|for|foreach|while|do|break|continue|return|switch|case|default|match|try|except|finally|raise|in|as)\\b",
+          "name": "keyword.control.barq"
+        },
+        {
+          "match": "\\b(class|enum|interface|trait|abstract|extends|implements|namespace|use|const|static|public|private|protected|insteadof)\\b",
+          "name": "storage.modifier.barq"
+        },
+        {
+          "match": "\\b(and|or|not|is)\\b",
+          "name": "keyword.operator.logical.barq"
+        },
+        {
+          "match": "\\b(true|false|null)\\b",
+          "name": "constant.language.barq"
+        },
+        {
+          "match": "\\b(this|self|parent)\\b",
+          "name": "variable.language.barq"
+        },
+        {
+          "match": "\\b(new)\\b",
+          "name": "keyword.other.new.barq"
+        },
+        {
+          "match": "\\b(__line__|__file__|__dir__|__class__|__method__|__function__|__namespace__)\\b",
+          "name": "constant.language.magic.barq"
+        },
+        {
+          "match": "::class\\b",
+          "name": "keyword.other.class.barq"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "match": "(\\?)?\\b(int|float|string|bool|void|any|list|dict|set|function)\\b(?=\\s*(<|[A-Za-z_*]|\\)|,|>|$))",
+          "captures": {
+            "1": {
+              "name": "keyword.operator.nullable.barq"
+            },
+            "2": {
+              "name": "support.type.primitive.barq"
+            }
+          }
+        },
+        {
+          "match": "(~)(int|float|string|bool|void|list|set|dict)(?=\\()",
+          "captures": {
+            "1": {
+              "name": "keyword.operator.cast.barq"
+            },
+            "2": {
+              "name": "support.type.primitive.barq"
+            }
+          }
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "match": "\\b0[xX][0-9A-Fa-f_]+\\b",
+          "name": "constant.numeric.hex.barq"
+        },
+        {
+          "match": "\\b\\d[\\d_]*(\\.\\d[\\d_]*)?([eE][+-]?\\d+)?\\b",
+          "name": "constant.numeric.barq"
+        }
+      ]
+    },
+    "calls": {
+      "patterns": [
+        {
+          "match": "\\b([A-Z][A-Za-z0-9_]*)(?=\\s*(\\.|::))",
+          "name": "support.class.barq"
+        },
+        {
+          "match": "\\b([a-z_][A-Za-z0-9_]*)(?=\\s*\\()",
+          "name": "entity.name.function.call.barq"
+        },
+        {
+          "match": "(?<=\\.)\\s*([A-Za-z_][A-Za-z0-9_]*)(?=\\s*\\()",
+          "name": "entity.name.function.member.barq"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "match": "=>",
+          "name": "keyword.operator.arrow.barq"
+        },
+        {
+          "match": "\\?\\.|\\?\\?",
+          "name": "keyword.operator.null.barq"
+        },
+        {
+          "match": "==|!=|<=|>=|<|>",
+          "name": "keyword.operator.comparison.barq"
+        },
+        {
+          "match": "\\+=|-=|\\*=|/=|%=|=",
+          "name": "keyword.operator.assignment.barq"
+        },
+        {
+          "match": "\\*\\*|[+\\-*/%]",
+          "name": "keyword.operator.arithmetic.barq"
+        },
+        {
+          "match": "~",
+          "name": "keyword.operator.cast.barq"
+        },
+        {
+          "match": "::",
+          "name": "punctuation.separator.static.barq"
+        },
+        {
+          "match": "\\?|:",
+          "name": "keyword.operator.ternary.barq"
+        }
+      ]
+    },
+    "namespaced": {
+      "match": "\\b[A-Z][A-Za-z0-9_]*\\b",
+      "name": "entity.name.type.barq"
+    }
+  }
+}
